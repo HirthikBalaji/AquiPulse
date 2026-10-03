@@ -341,6 +341,7 @@ def get_farmer_lite_view(pump_id: str, lang: str = "en") -> FarmerLiteViewRespon
     )
 
 
+@app.get("/", response_class=HTMLResponse)
 @app.get("/discom/console", response_class=HTMLResponse)
 def discom_console_html() -> str:
     """Interactive DISCOM & Groundwater Authority Console Dashboard."""
@@ -354,6 +355,9 @@ def discom_console_html() -> str:
             body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background: #0f172a; color: #f8fafc; }}
             header {{ background: #1e293b; padding: 1.2rem 2rem; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }}
             h1 {{ margin: 0; font-size: 1.4rem; color: #38bdf8; }}
+            .nav-links {{ display: flex; gap: 1rem; align-items: center; }}
+            .nav-links a {{ color: #94a3b8; text-decoration: none; font-size: 0.9rem; padding: 4px 8px; border-radius: 4px; transition: all 0.2s; }}
+            .nav-links a:hover {{ color: #38bdf8; background: #334155; }}
             .badge {{ background: #0284c7; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }}
             .container {{ padding: 2rem; max-width: 1200px; margin: 0 auto; }}
             .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }}
@@ -371,7 +375,13 @@ def discom_console_html() -> str:
     <body>
         <header>
             <h1>⚡ AquiPulse Aquifer & Feeder Console</h1>
-            <div><span class="badge">Feeder AG-01: ENERGIZED</span></div>
+            <div class="nav-links">
+                <a href="/docs" target="_blank">📖 Swagger API Docs</a>
+                <a href="/v1/settlements" target="_blank">💰 Settlements</a>
+                <a href="/v1/cells" target="_blank">🗺️ Aquifer Cells</a>
+                <a href="/v1/pumps/PUMP-0001/farmer-lite" target="_blank">📱 Farmer Card</a>
+                <span class="badge">Feeder AG-01: ENERGIZED</span>
+            </div>
         </header>
         <div class="container">
             <div class="grid">
