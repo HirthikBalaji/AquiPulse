@@ -1,0 +1,40 @@
+version: "3.8"
+
+services:
+  timescaledb:
+    image: timescale/timescaledb-ha:pg16
+    container_name: aquipulse-timescaledb
+    environment:
+      POSTGRES_USER: aquipulse
+      POSTGRES_PASSWORD: aquipulse_secret_password
+      POSTGRES_DB: aquipulse
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./api/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: aquipulse-mqtt
+    ports:
+      - "1883:1883"
+    restart: unless-stopped
+
+  api:
+    build: .
+    container_name: aquipulse-api
+    command: uvicorn api.service:app --host 0.0.0.0 --port 8000
+    environment:
+      DATABASE_URL: postgresql://aquipulse:aquipulse_secret_password@timescaledb:5432/aquipulse
+      MQTT_BROKER: mosquitto
+    ports:
+      - "8000:8000"
+    depends_on:
+      - timescaledb
+      - mosquitto
+    restart: unless-stopped
+
+volumes:
+  timescaledb_data:
