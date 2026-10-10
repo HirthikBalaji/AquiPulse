@@ -3,7 +3,7 @@ marp: true
 theme: uncover
 paginate: true
 header: "AquiPulse — Fleet-Scale Groundwater Intelligence"
-footer: "National Hackathon 2026 | Confidential Pitch Deck"
+footer: "Bharat Builds Tour: Environmental Hacks | Pitch Deck"
 backgroundColor: "#090d16"
 color: "#f1f5f9"
 style: |
@@ -175,7 +175,7 @@ We do not need to install a single pipe, drill observation wells, or touch the w
 
 <!-- 
 Presenter Notes:
-- Address the jury's immediate thought: "Why not just put flow meters?"
+- Address the judges' immediate thought: "Why not just put flow meters?"
 - Show why physical hardware fails in rural conditions.
 -->
 
@@ -530,14 +530,14 @@ Presenter Notes:
 
 <br>
 
-### **Thank You. We welcome questions from the Jury.**
+### **Thank You.**
 
-**Repo:** `github.com/aquipulse/aquipulse` | **API:** `localhost:8000/docs`
+**Repo:** `github.com/HirthikBalaji/AquiPulse` | **API:** `localhost:8000/docs`
 
 </div>
 
 <!-- 
 Presenter Notes:
 - Conclude on sovereign impact and national mission.
-- Open floor for jury Q&A.
+- Open floor for Q&A.
 -->

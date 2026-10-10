@@ -201,10 +201,12 @@ aquipulse/
   bench/          # Automated evaluation harness + RESULTS.md generator
   docs/           # Event submission documentation:
     SUBMISSION.md               # Official Bharat Builds Tour submission dossier
+    PROJECT_SUMMARY.md          # Event submission questions & executive summary
+    AWS_USAGE.md                # AWS open-source stack & cloud services breakdown
+    TEAM_CONTRIBUTIONS.md       # Individual roles & key deliverables completed
     AWS_BUILDER_CENTER_ARTICLE.md # "What you built & what fought back" article
     DEMO_VIDEO_SCRIPT.md        # 3-minute recorded walkthrough video script
     AWS_ARCHITECTURE.md         # AWS Well-Architected Framework deep dive
-    HACKATHON_EVALUATION.md     # Mathematical defense & 5 jury evaluation questions
     LIMITATIONS.md              # Physical failure mode boundaries
     prior_art.md                # Prior art & patent comparison
   tests/          # Comprehensive 42-test pytest suite
@@ -215,6 +217,9 @@ aquipulse/
 ## 🏆 Hackathon Submission Deliverables
 
 - 📄 **[Official Submission Dossier](docs/SUBMISSION.md)**: Full answers to all judging criteria, track selection, and impact breakdown.
+- 📋 **[Project Summary](docs/PROJECT_SUMMARY.md)**: Submission questions (what it does, problem solved, who it is for).
+- ☁️ **[AWS Usage Details](docs/AWS_USAGE.md)**: Detailed breakdown of AWS open-source tools (Cedar, LocalStack, SAM) and cloud services.
+- 👥 **[Team Contributions](docs/TEAM_CONTRIBUTIONS.md)**: Individual team roles and completed technical deliverables.
 - 📝 **[AWS Builder Center Article](docs/AWS_BUILDER_CENTER_ARTICLE.md)**: Deep dive on *"What We Built, the Architecture, and What Fought Back"*.
 - 🎥 **[3-Minute Demo Video Script](docs/DEMO_VIDEO_SCRIPT.md)**: Second-by-second scene walkthrough for judges (Criterion 05).
 - 🏗️ **[AWS Architecture Deep Dive](docs/AWS_ARCHITECTURE.md)**: AWS Well-Architected sustainability, reliability, and security analysis.
