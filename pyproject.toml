@@ -5,6 +5,7 @@ description = "Fleet-Scale Groundwater Intelligence from the Electrical Heartbea
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "boto3>=1.43.111",
     "cryptography>=50.0.2",
     "fastapi>=0.142.2",
     "httpx>=0.28.1",
@@ -27,7 +28,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["sim*", "phi*", "opt*", "fat*", "mep*", "ise*", "api*", "ingest*", "bench*"]
+include = ["sim*", "phi*", "opt*", "fat*", "mep*", "ise*", "api*", "ingest*", "bench*", "aws*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

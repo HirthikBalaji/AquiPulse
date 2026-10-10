@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AquiPulse - Fleet-Scale Groundwater Intelligence</title>
+    <title>AquiPulse - AWS Groundwater Intelligence (Track 02: Heat & Water)</title>
     <style>
         :root {
             --bg-main: #090d16;
@@ -12,6 +12,7 @@
             --accent: #0ea5e9;
             --accent-green: #10b981;
             --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
             --text-main: #f1f5f9;
             --text-muted: #94a3b8;
         }
@@ -29,14 +30,31 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
-        .logo { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
-        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1.5rem; }
+        .logo { font-size: 1.3rem; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 0.5rem; }
+        .badges { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+        .badge-env { background: #059669; color: #ffffff; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        .badge-aws { background: #ff9900; color: #000000; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; }
+        .container { max-width: 1280px; margin: 1.5rem auto; padding: 0 1.5rem; }
+        .banner {
+            background: linear-gradient(90deg, rgba(14,165,233,0.12), rgba(16,185,129,0.12));
+            border: 1px solid #0284c7;
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
         .stat-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 1.2rem;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
         .stat-card {
             background-color: var(--bg-card);
@@ -44,47 +62,144 @@
             border-radius: 8px;
             padding: 1.2rem;
         }
-        .stat-title { font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.4rem; }
+        .stat-title { font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.4rem; letter-spacing: 0.05em; }
         .stat-val { font-size: 1.8rem; font-weight: 700; color: var(--accent); }
-        .section-title { font-size: 1.1rem; margin-bottom: 1rem; color: var(--text-main); }
+        .section-title { font-size: 1.05rem; margin-bottom: 0.75rem; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
         table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
         th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
-        th { background: #1a253c; color: var(--text-muted); }
+        th { background: #1a253c; color: var(--text-muted); font-weight: 600; }
         .tag-ok { color: var(--accent-green); font-weight: 600; }
-        .btn { background: var(--accent); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        .tag-stressed { color: var(--accent-red); font-weight: 600; }
+        .btn { background: var(--accent); color: white; border: none; padding: 7px 14px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+        .btn:hover { background: #0284c7; }
+        select, input { background: #090d16; border: 1px solid var(--border); color: white; padding: 7px 10px; border-radius: 4px; font-size: 0.85rem; }
+        .interactive-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+            gap: 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+        .box {
+            background: #090d16;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
     <header>
-        <div class="logo">⚡ AquiPulse — DISCOM & Watershed Command</div>
-        <div><span style="color:var(--accent-green); font-weight:bold;">● Digital Twin Live</span></div>
+        <div class="logo">⚡ AquiPulse — DISCOM & Watershed Intelligence</div>
+        <div class="badges">
+            <span class="badge-env">Bharat Builds: Track 02 (Heat & Water)</span>
+            <span class="badge-aws">AWS Cloud & Free Tier</span>
+            <span style="color:var(--accent-green); font-weight:bold; font-size:0.85rem;">● IoT Core Stream Active</span>
+        </div>
     </header>
     <div class="container">
+        <div class="banner">
+            <div>
+                <strong style="color:var(--accent); font-size:1.05rem;">WeMakeDevs & AWS Bharat Builds Tour: Environmental Hacks</strong>
+                <div style="color:var(--text-muted); font-size:0.85rem; margin-top:4px;">
+                    Turning unmetered pump heartbeats into virtual piezometers and marginal damage settlements across India's aquifers.
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <a href="/docs" target="_blank" style="color:var(--accent); font-size:0.85rem; text-decoration:none; margin-right:1rem;">API Docs</a>
+                <a href="/v1/aws/status" target="_blank" style="color:var(--accent); font-size:0.85rem; text-decoration:none;">AWS Diagnostic Status</a>
+            </div>
+        </div>
+
         <div class="stat-grid">
             <div class="stat-card">
                 <div class="stat-title">Active Pump Heartbeats</div>
                 <div class="stat-val" id="stat-pumps">500</div>
+                <div style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">Virtual metering active across all wells</div>
             </div>
             <div class="stat-card">
-                <div class="stat-title">Aquifer Water Level</div>
+                <div class="stat-title">Mean Static Water Depth</div>
                 <div class="stat-val">34.8 m</div>
+                <div style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">Inferred from 4 kHz startup power ramp</div>
             </div>
             <div class="stat-card">
                 <div class="stat-title">Marginal Externality Price</div>
                 <div class="stat-val">₹ 2.14 / m³</div>
+                <div style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">1 backward adjoint pass of 2D JAX PDE</div>
             </div>
             <div class="stat-card">
                 <div class="stat-title">Verified Avoided Extraction</div>
                 <div class="stat-val" style="color:var(--accent-green);">14,200 m³</div>
+                <div style="color:var(--accent-green); font-size:0.75rem; margin-top:4px;">+14.2% water saved (21.4 Cr litres/yr per feeder)</div>
             </div>
         </div>
 
-        <h3 class="section-title">Verified Farm Well Extraction & Payout Settlement Ledger (L1 - L5)</h3>
+        <!-- Interactive AWS Bedrock Advisor & Cedar Security Modules -->
+        <div class="interactive-grid">
+            <div class="stat-card">
+                <div class="stat-title">🤖 Amazon Bedrock Vernacular Advisor (Farmer Copilot)</div>
+                <p style="font-size:0.82rem; color:var(--text-muted); margin-top:0;">Generates culturally localized water guidance in Indian languages:</p>
+                <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;">
+                    <select id="lang-select">
+                        <option value="hi" selected>हिन्दी (Hindi)</option>
+                        <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+                        <option value="gu">ગુજરાતી (Gujarati)</option>
+                        <option value="te">తెలుగు (Telugu)</option>
+                        <option value="ta">தமிழ் (Tamil)</option>
+                        <option value="en">English</option>
+                    </select>
+                    <button class="btn" onclick="triggerBedrockAdvisory()">Generate via Bedrock</button>
+                </div>
+                <div class="box" id="bedrock-box">
+                    <strong>💧 एक्विपल्स (AquiPulse) किसान जल एवं आय परामर्श</strong><br>
+                    नमस्ते राजेश कुमार! आपके बोरवेल (PUMP-0001) का जलस्तर 34.8m है। आज जल बचत प्रोत्साहन दर ₹2.14/m³ है। दोपहर 12 से 3 बजे के बीच पंप बंद रखकर सौर ऊर्जा घंटों में चलाने पर आपको ₹80 का नकद प्रोत्साहन मिलेगा। फसल सुरक्षा (NDVI: 0.72) सामान्य है।<br><br>
+                    <span style="color:var(--accent);">👉 सुझाव: दोपहर के पीक लोड के बजाय सौर ऊर्जा घंटों में सिंचाई करें।</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">🛡️ AWS Cedar Zero-Trust Authorization Tester</div>
+                <p style="font-size:0.82rem; color:var(--text-muted); margin-top:0;">Evaluates declarative fine-grained access control policies (<code>aws/policies.cedar</code>):</p>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; margin-bottom:0.5rem;">
+                    <div>
+                        <label style="font-size:0.75rem; color:var(--text-muted);">Principal / Role:</label><br>
+                        <select id="cedar-role" style="width:100%;">
+                            <option value="DISCOM_Operator">DISCOM_Operator</option>
+                            <option value="Hydrogeologist">Hydrogeologist</option>
+                            <option value="Panchayat_Leader">Panchayat_Leader</option>
+                            <option value="Farmer">Farmer</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem; color:var(--text-muted);">Action:</label><br>
+                        <select id="cedar-action" style="width:100%;">
+                            <option value="ViewTelemetry">ViewTelemetry</option>
+                            <option value="TriggerEmergencyShutdown">TriggerEmergencyShutdown</option>
+                            <option value="ModifyAquiferBoundary">ModifyAquiferBoundary</option>
+                            <option value="ViewVillageLedger">ViewVillageLedger</option>
+                            <option value="ClaimEarnedBonus">ClaimEarnedBonus</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" style="width:100%;" onclick="triggerCedarCheck()">Evaluate Policy</button>
+                <div class="box" id="cedar-box">
+                    <strong style="color:var(--accent-green);">Decision: ALLOW</strong><br>
+                    <span style="color:var(--text-muted); font-size:0.8rem;">Permitted by Cedar Policy #1: DISCOM grid operator controls</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <span>Verified Farm Well Extraction & Payout Settlement Ledger (L1 - L5)</span>
+            <span style="font-size:0.8rem; color:var(--text-muted);">AWS Timestream & S3 Object Lock</span>
+        </div>
         <table>
             <thead>
                 <tr>
                     <th>Pump ID</th>
-                    <th>Farmer</th>
+                    <th>Farmer ID</th>
                     <th>Inferred Q</th>
                     <th>Static Depth</th>
                     <th>Avoided Vol</th>
@@ -93,7 +208,7 @@
                     <th>Guardrail Status</th>
                 </tr>
             </thead>
-            <tbody id="settlement-table">
+            <tbody>
                 <tr>
                     <td><b>PUMP-0001</b></td>
                     <td>FARMER-0001</td>
@@ -124,8 +239,62 @@
                     <td style="color:var(--accent-green); font-weight:bold;">₹ 624.75</td>
                     <td><span class="tag-ok">PASSED (NDVI 0.74)</span></td>
                 </tr>
+                <tr>
+                    <td><b>PUMP-0004</b></td>
+                    <td>FARMER-0004</td>
+                    <td>8.4 L/s</td>
+                    <td>41.2 m</td>
+                    <td>290 m³</td>
+                    <td>₹ 2.95 / m³</td>
+                    <td style="color:var(--accent-green); font-weight:bold;">₹ 427.75</td>
+                    <td><span class="tag-stressed">CONE STRESSED (λ > ₹2.8)</span></td>
+                </tr>
             </tbody>
         </table>
     </div>
+
+    <script>
+        async function triggerBedrockAdvisory() {
+            const lang = document.getElementById("lang-select").value;
+            const box = document.getElementById("bedrock-box");
+            box.innerHTML = "<em>Invoking Amazon Bedrock Model...</em>";
+            try {
+                const res = await fetch("/v1/aws/advisory", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ pump_id: "PUMP-0001", language: lang })
+                });
+                const data = await res.json();
+                box.innerHTML = `<strong>${data.source} (${data.language.toUpperCase()})</strong><br>${data.whatsapp_message}<br><br><span style="color:var(--accent);">👉 Action: ${data.recommended_action}</span>`;
+            } catch (e) {
+                box.innerText = "Error: " + e;
+            }
+        }
+
+        async function triggerCedarCheck() {
+            const role = document.getElementById("cedar-role").value;
+            const act = document.getElementById("cedar-action").value;
+            const box = document.getElementById("cedar-box");
+            try {
+                const res = await fetch("/v1/aws/auth-check", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        principal_type: role === "Farmer" ? "AquiPulse::Farmer" : "AquiPulse::Role",
+                        principal_id: role,
+                        action: act,
+                        resource_type: act === "ModifyAquiferBoundary" ? "AquiPulse::Aquifer" : (act === "ViewVillageLedger" ? "AquiPulse::Village" : (act === "ClaimEarnedBonus" ? "AquiPulse::Pump" : "AquiPulse::Feeder")),
+                        resource_id: "FEEDER-AG01",
+                        resource_owner: role
+                    })
+                });
+                const data = await res.json();
+                const color = data.decision === "ALLOW" ? "var(--accent-green)" : "var(--accent-red)";
+                box.innerHTML = `<strong style="color:${color}">Decision: ${data.decision}</strong><br><span style="color:var(--text-muted); font-size:0.8rem;">${data.diagnostic_reason}</span>`;
+            } catch (e) {
+                box.innerText = "Error: " + e;
+            }
+        }
+    </script>
 </body>
 </html>

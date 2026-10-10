@@ -1,0 +1,168 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AquiPulse - Fleet-Scale Groundwater Intelligence from the Electrical Heartbeat of Irrigation Pumps.
+  Developed for WeMakeDevs & AWS Bharat Builds Tour: Environmental Hacks (Track 02: Heat and Water).
+  100% Free Tier Eligible.
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.12
+    Environment:
+      Variables:
+        AWS_REGION: ap-south-1
+        AQUIPULSE_S3_BUCKET: !Ref TelemetryBucket
+        AQUIPULSE_DYNAMO_TABLE: !Ref PumpRegistryTable
+        AQUIPULSE_SNS_TOPIC_ARN: !Ref AquiferAlertsTopic
+        AQUIPULSE_BEDROCK_MODEL: anthropic.claude-3-5-sonnet-20241022-v2:0
+
+Resources:
+  # =========================================================================
+  # 1. Edge Ingestion & Heartbeat Lambda (AWS IoT Core Trigger)
+  # =========================================================================
+  HeartbeatIngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: aws.lambda_handlers.handler_heartbeat_ingest
+      Description: Ingests 1 Hz electrical telemetry, executes PHI state inversion, and detects cone stress.
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PumpRegistryTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt AquiferAlertsTopic.TopicName
+      Events:
+        IoTRuleTelemetry:
+          Type: IoTRule
+          Properties:
+            Sql: "SELECT * FROM 'aquipulse/feeder/+/well/+/telemetry'"
+            AwsIotSqlVersion: "2016-03-23"
+
+  # =========================================================================
+  # 2. 4 kHz Startup Burst Transient Extractor (Amazon S3 Trigger)
+  # =========================================================================
+  TransientBurstFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: aws.lambda_handlers.handler_transient_burst
+      Description: Analyzes 4 kHz startup power ramp from riser pipe filling to extract static water depth.
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref TelemetryBucket
+      Events:
+        S3BurstUpload:
+          Type: S3
+          Properties:
+            Bucket: !Ref TelemetryBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: transients/
+
+  # =========================================================================
+  # 3. Scheduled Hydro-Economic Settlement Engine (Amazon EventBridge)
+  # =========================================================================
+  DailySettlementAdjointFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: aws.lambda_handlers.handler_settlement_cycle
+      Description: Runs daily adjoint PDE solve, computes avoided damage prices, and settles farmer bonuses.
+      Timeout: 120
+      MemorySize: 1024
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref TelemetryBucket
+      Events:
+        DailyCron:
+          Type: Schedule
+          Properties:
+            Schedule: "cron(0 18 * * ? *)" # Midnight IST (18:30 UTC)
+            Description: "Nightly groundwater conservation settlement cycle"
+
+  # =========================================================================
+  # 4. Amazon Bedrock Multilingual Farmer Advisor (API Gateway Trigger)
+  # =========================================================================
+  BedrockAdvisoryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: aws.lambda_handlers.handler_bedrock_advisory
+      Description: Generates personalized vernacular water cards in Hindi, Punjabi, Gujarati, Telugu, Tamil via Bedrock.
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: "*"
+      Events:
+        ApiGetAdvisory:
+          Type: HttpApi
+          Properties:
+            Path: /v1/advisory
+            Method: GET
+
+  # =========================================================================
+  # 5. Storage: Amazon S3 Bucket (Object Lock & Lifecycle for Immutable Ledger)
+  # =========================================================================
+  TelemetryBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "aquipulse-groundwater-${AWS::AccountId}-${AWS::Region}"
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitionOldBurstsToGlacier
+            Status: Enabled
+            Prefix: transients/
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: GLACIER
+
+  # =========================================================================
+  # 6. Storage: Amazon DynamoDB Registry & State Table (Free Tier Pay-Per-Request)
+  # =========================================================================
+  PumpRegistryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AquiPulsePumpRegistry
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pump_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: pump_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # =========================================================================
+  # 7. Messaging: Amazon SNS Alerts Topic for Critical Cone Dewatering
+  # =========================================================================
+  AquiferAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: AquiPulseAquiferAlerts
+      DisplayName: "AquiPulse Critical Groundwater Alert"
+
+Outputs:
+  HttpApiEndpoint:
+    Description: "HTTP API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/v1/advisory"
+  TelemetryBucketName:
+    Description: "S3 Bucket for bursts and immutable settlement blocks"
+    Value: !Ref TelemetryBucket
+  PumpRegistryTableName:
+    Description: "DynamoDB Table Name"
+    Value: !Ref PumpRegistryTable

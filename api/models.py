@@ -120,3 +120,69 @@ class FarmerLiteViewResponse(BaseModel):
     summary_text_sms: str
     whatsapp_card_markdown: str
     recommended_action: str
+
+
+class AwsStatusResponse(BaseModel):
+    region: str
+    localstack_mode: bool
+    localstack_endpoint: Optional[str]
+    s3_bucket: str
+    dynamodb_table: str
+    timestream_db: str
+    bedrock_model: str
+    status: str
+
+
+class BedrockAdvisoryRequest(BaseModel):
+    pump_id: str = "PUMP-0001"
+    language: str = "hi"
+    farmer_name: Optional[str] = None
+    query: Optional[str] = None
+
+
+class BedrockAdvisoryResponse(BaseModel):
+    pump_id: str
+    farmer_name: str
+    language: str
+    source: str
+    model_id: str
+    sms_text: str
+    whatsapp_message: str
+    recommended_action: str
+    estimated_daily_bonus_inr: float = 0.0
+
+
+class CedarAuthRequest(BaseModel):
+    principal_type: str = "AquiPulse::Role"
+    principal_id: str = "DISCOM_Operator"
+    action: str = "ViewTelemetry"
+    resource_type: str = "AquiPulse::Feeder"
+    resource_id: str = "FEEDER-AG01"
+    resource_owner: Optional[str] = None
+    context: Optional[dict] = None
+
+
+class CedarAuthResponse(BaseModel):
+    decision: str
+    diagnostic_reason: str
+    matching_policy: Optional[str]
+
+
+class AwsIoTSimulateRequest(BaseModel):
+    feeder_id: str = "FEEDER-AG01"
+    pump_id: str = "PUMP-0001"
+    v_rms: float = 415.0
+    i_rms: float = 14.5
+    pf: float = 0.85
+    p_kw: float = 8.8
+    freq_hz: float = 50.0
+    signature: str = ""
+
+
+class AwsIoTSimulateResponse(BaseModel):
+    topic: str
+    published: bool
+    valid: bool
+    flags: List[str]
+    inferred_q_lps: Optional[float] = None
+    inferred_h_dyn_m: Optional[float] = None

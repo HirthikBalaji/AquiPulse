@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # LocalStack: Fully local AWS cloud stack (IoT, Lambda, S3, DynamoDB, SNS)
+  localstack:
+    container_name: aquipulse-localstack
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"            # LocalStack Gateway
+      - "4510-4559:4510-4559"  # External services range
+    environment:
+      - SERVICES=s3,dynamodb,sns,iot,lambda
+      - AWS_DEFAULT_REGION=ap-south-1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./aws/localstack_setup.sh:/etc/localstack/init/ready.d/init-aws.sh"
+
+  # AquiPulse API Service (Configured to use LocalStack by default)
+  aquipulse-api:
+    build: .
+    container_name: aquipulse-api
+    ports:
+      - "8000:8000"
+    environment:
+      - AWS_REGION=ap-south-1
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AQUIPULSE_S3_BUCKET=aquipulse-groundwater-telemetry-prod
+      - AQUIPULSE_DYNAMO_TABLE=AquiPulsePumpRegistry
+    depends_on:
+      - localstack

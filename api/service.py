@@ -11,6 +11,13 @@ from fastapi.responses import HTMLResponse
 from api.models import (
     AuditSubmissionRequest,
     AuditSubmissionResponse,
+    AwsIoTSimulateRequest,
+    AwsIoTSimulateResponse,
+    AwsStatusResponse,
+    BedrockAdvisoryRequest,
+    BedrockAdvisoryResponse,
+    CedarAuthRequest,
+    CedarAuthResponse,
     CellsResponse,
     CellStateItem,
     FarmerLiteViewResponse,
@@ -22,20 +29,27 @@ from api.models import (
     TelemetryBatchRequest,
     TelemetryBatchResponse,
 )
+from aws.bedrock_agent import BedrockGroundwaterAgent
+from aws.cedar_auth import CedarPolicyEngine
+from aws.config import get_aws_status
+from aws.iot_core import AwsIotBridge
 from ise.physics_checks import TelemetryValidator
 from phi.bayes_model import AuditLabel
 from phi.infer import PhiEngine
 from sim.catalog import get_catalog
 
 app = FastAPI(
-    title="AquiPulse API",
+    title="AquiPulse API - AWS Environmental Hacks",
     version="1.0.0",
-    description="Fleet-Scale Groundwater Intelligence from the Electrical Heartbeat of Irrigation Pumps",
+    description="Fleet-Scale Groundwater Intelligence from the Electrical Heartbeat of Irrigation Pumps (AWS Track 02: Heat and Water)",
 )
 
 # Global in-memory state stores for runtime service
 PHI_ENGINE = PhiEngine()
 VALIDATOR = TelemetryValidator(secret_keys={})
+BEDROCK_AGENT = BedrockGroundwaterAgent()
+CEDAR_ENGINE = CedarPolicyEngine()
+AWS_IOT_BRIDGE = AwsIotBridge()
 
 REGISTERED_PUMPS: Dict[str, Dict[str, Any]] = {}
 LATEST_STATES: Dict[str, Dict[str, Any]] = {}
@@ -341,74 +355,262 @@ def get_farmer_lite_view(pump_id: str, lang: str = "en") -> FarmerLiteViewRespon
     )
 
 
+# =========================================================================
+# AWS Cloud & Open Source Integration Endpoints (Bharat Builds Tour)
+# =========================================================================
+
+@app.get("/v1/aws/status", response_model=AwsStatusResponse)
+def get_aws_cloud_status() -> AwsStatusResponse:
+    """Return diagnostic status of AWS Cloud & LocalStack configuration."""
+    status_dict = get_aws_status()
+    return AwsStatusResponse(
+        region=status_dict["region"],
+        localstack_mode=status_dict["localstack_mode"],
+        localstack_endpoint=status_dict["localstack_endpoint"],
+        s3_bucket=status_dict["s3_bucket"],
+        dynamodb_table=status_dict["dynamodb_table"],
+        timestream_db=status_dict["timestream_db"],
+        bedrock_model=status_dict["bedrock_model"],
+        status=status_dict["status"],
+    )
+
+
+@app.post("/v1/aws/advisory", response_model=BedrockAdvisoryResponse)
+def post_bedrock_advisory(req: BedrockAdvisoryRequest) -> BedrockAdvisoryResponse:
+    """Generate personalized multilingual farmer advisory card via Amazon Bedrock."""
+    pump_id = req.pump_id
+    p_info = REGISTERED_PUMPS.get(pump_id, {"farmer_id": "FARMER-0001", "crop": "cotton"})
+    f_name = req.farmer_name or f"Farmer ({p_info['farmer_id']})"
+    st = LATEST_STATES.get(pump_id, {"z_static_m": 34.8, "q_lps": 5.8})
+    pr = LATEST_PRICES.get(pump_id, {"lambda_inr_per_m3": 2.14})
+
+    adv = BEDROCK_AGENT.generate_farmer_advisory(
+        pump_id=pump_id,
+        farmer_name=f_name,
+        depth_m=st.get("z_static_m", 34.8),
+        flow_lps=st.get("q_lps", 5.8),
+        externality_price_inr=pr.get("lambda_inr_per_m3", 2.14),
+        crop=p_info.get("crop", "cotton"),
+        language=req.language,
+    )
+
+    return BedrockAdvisoryResponse(
+        pump_id=pump_id,
+        farmer_name=f_name,
+        language=adv["language"],
+        source=adv["source"],
+        model_id=adv["model_id"],
+        sms_text=adv["sms_text"],
+        whatsapp_message=adv["whatsapp_message"],
+        recommended_action=adv["recommended_action"],
+        estimated_daily_bonus_inr=adv.get("estimated_daily_bonus_inr", 0.0),
+    )
+
+
+@app.post("/v1/aws/auth-check", response_model=CedarAuthResponse)
+def post_cedar_auth_check(req: CedarAuthRequest) -> CedarAuthResponse:
+    """Evaluate access authorization against AWS Cedar zero-trust policies."""
+    decision = CEDAR_ENGINE.is_authorized(
+        principal_type=req.principal_type,
+        principal_id=req.principal_id,
+        action=req.action,
+        resource_type=req.resource_type,
+        resource_id=req.resource_id,
+        resource_owner=req.resource_owner,
+        context=req.context,
+    )
+    return CedarAuthResponse(
+        decision=decision.decision,
+        diagnostic_reason=decision.diagnostic_reason,
+        matching_policy=decision.matching_policy,
+    )
+
+
+@app.post("/v1/aws/simulate-iot", response_model=AwsIoTSimulateResponse)
+def post_simulate_iot_telemetry(req: AwsIoTSimulateRequest) -> AwsIoTSimulateResponse:
+    """Simulate edge Node G telemetry routing through AWS IoT Core bridge."""
+    pub_res = AWS_IOT_BRIDGE.publish_telemetry(
+        feeder_id=req.feeder_id,
+        pump_id=req.pump_id,
+        v_rms=req.v_rms,
+        i_rms=req.i_rms,
+        pf=req.pf,
+        p_kw=req.p_kw,
+        freq_hz=req.freq_hz,
+        signature=req.signature,
+    )
+
+    inferred_q = None
+    inferred_h = None
+    if pub_res["valid"]:
+        phi_res = PHI_ENGINE.infer_instantaneous_state(
+            pump_id=req.pump_id,
+            timestamp_s=time.time(),
+            v_rms=req.v_rms,
+            i_rms=req.i_rms,
+            pf=req.pf,
+            p_kw=req.p_kw,
+            freq_hz=req.freq_hz,
+        )
+        inferred_q = phi_res.q_lps
+        inferred_h = phi_res.h_dyn_m
+
+    return AwsIoTSimulateResponse(
+        topic=pub_res["topic"],
+        published=pub_res["published"],
+        valid=pub_res["valid"],
+        flags=pub_res["flags"],
+        inferred_q_lps=inferred_q,
+        inferred_h_dyn_m=inferred_h,
+    )
+
+
 @app.get("/", response_class=HTMLResponse)
 @app.get("/discom/console", response_class=HTMLResponse)
 def discom_console_html() -> str:
     """Interactive DISCOM & Groundwater Authority Console Dashboard."""
+    aws_info = get_aws_status()
+    cloud_mode = "LocalStack (Free Offline)" if aws_info["localstack_mode"] else f"AWS Cloud ({aws_info['region']})"
+
     return f"""
     <!DOCTYPE html>
     <html>
     <head>
-        <title>AquiPulse - DISCOM & Groundwater Authority Console</title>
+        <title>AquiPulse - AWS Groundwater & Feeder Console</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background: #0f172a; color: #f8fafc; }}
-            header {{ background: #1e293b; padding: 1.2rem 2rem; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }}
-            h1 {{ margin: 0; font-size: 1.4rem; color: #38bdf8; }}
-            .nav-links {{ display: flex; gap: 1rem; align-items: center; }}
-            .nav-links a {{ color: #94a3b8; text-decoration: none; font-size: 0.9rem; padding: 4px 8px; border-radius: 4px; transition: all 0.2s; }}
+            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background: #090d16; color: #f1f5f9; }}
+            header {{ background: #131c2e; padding: 1rem 2rem; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }}
+            h1 {{ margin: 0; font-size: 1.35rem; color: #38bdf8; display: flex; align-items: center; gap: 0.5rem; }}
+            .nav-links {{ display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }}
+            .nav-links a {{ color: #94a3b8; text-decoration: none; font-size: 0.85rem; padding: 5px 10px; border-radius: 4px; background: #1e293b; transition: all 0.2s; }}
             .nav-links a:hover {{ color: #38bdf8; background: #334155; }}
-            .badge {{ background: #0284c7; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }}
-            .container {{ padding: 2rem; max-width: 1200px; margin: 0 auto; }}
-            .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }}
-            .card {{ background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1.5rem; }}
-            .card h3 {{ margin-top: 0; color: #94a3b8; font-size: 0.9rem; text-transform: uppercase; }}
-            .metric {{ font-size: 2rem; font-weight: bold; color: #38bdf8; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 1rem; }}
-            th, td {{ padding: 10px 12px; text-align: left; border-bottom: 1px solid #334155; font-size: 0.9rem; }}
-            th {{ background: #334155; color: #cbd5e1; }}
-            .tag-green {{ color: #4ade80; font-weight: bold; }}
-            .tag-amber {{ color: #fbbf24; font-weight: bold; }}
-            .tag-red {{ color: #f87171; font-weight: bold; }}
+            .badge-env {{ background: #059669; color: #ffffff; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }}
+            .badge-aws {{ background: #ff9900; color: #000000; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }}
+            .container {{ padding: 1.5rem 2rem; max-width: 1300px; margin: 0 auto; }}
+            .banner {{ background: linear-gradient(90deg, rgba(14,165,233,0.15), rgba(16,185,129,0.15)); border: 1px solid #0284c7; border-radius: 8px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; }}
+            .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; }}
+            .card {{ background: #131c2e; border: 1px solid #1e293b; border-radius: 8px; padding: 1.25rem; }}
+            .card h3 {{ margin-top: 0; color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }}
+            .metric {{ font-size: 1.85rem; font-weight: bold; color: #38bdf8; margin: 0.2rem 0; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 0.75rem; }}
+            th, td {{ padding: 10px 12px; text-align: left; border-bottom: 1px solid #1e293b; font-size: 0.85rem; }}
+            th {{ background: #1e293b; color: #94a3b8; }}
+            .tag-green {{ color: #34d399; font-weight: 600; }}
+            .tag-amber {{ color: #fbbf24; font-weight: 600; }}
+            .tag-red {{ color: #f87171; font-weight: 600; }}
+            .btn {{ background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }}
+            .btn:hover {{ background: #0369a1; }}
+            select, input {{ background: #0f172a; border: 1px solid #334155; color: white; padding: 6px 10px; border-radius: 4px; font-size: 0.85rem; }}
+            .advisory-box {{ background: #090d16; border: 1px solid #334155; border-radius: 6px; padding: 1rem; margin-top: 1rem; font-size: 0.9rem; line-height: 1.5; }}
         </style>
     </head>
     <body>
         <header>
-            <h1>⚡ AquiPulse Aquifer & Feeder Console</h1>
+            <h1>⚡ AquiPulse Aquifer & Feeder Console <span>× AWS Environmental Hacks</span></h1>
             <div class="nav-links">
-                <a href="/docs" target="_blank">📖 Swagger API Docs</a>
+                <span class="badge-env">Track 02: Heat & Water</span>
+                <span class="badge-aws">{cloud_mode}</span>
+                <a href="/docs" target="_blank">📖 OpenAPI Docs</a>
+                <a href="/v1/aws/status" target="_blank">☁️ AWS Status</a>
                 <a href="/v1/settlements" target="_blank">💰 Settlements</a>
-                <a href="/v1/cells" target="_blank">🗺️ Aquifer Cells</a>
-                <a href="/v1/pumps/PUMP-0001/farmer-lite" target="_blank">📱 Farmer Card</a>
-                <span class="badge">Feeder AG-01: ENERGIZED</span>
+                <a href="/v1/cells" target="_blank">🗺️ Aquifer Mesh</a>
             </div>
         </header>
         <div class="container">
+            <div class="banner">
+                <div>
+                    <strong style="color:#38bdf8; font-size:1.05rem;">WeMakeDevs & AWS Bharat Builds Tour: Environmental Hacks</strong>
+                    <div style="color:#94a3b8; font-size:0.85rem; margin-top:4px;">
+                        Transforming 30M unmetered irrigation pump electrical signals into virtual water meters, piezometers, and digital twins on AWS.
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:0.8rem; color:#10b981;">● AWS IoT Core 1Hz Stream Active</div>
+                    <div style="font-size:0.75rem; color:#94a3b8;">Region: {aws_info['region']} | Model: Claude 3.5 / Titan</div>
+                </div>
+            </div>
+
             <div class="grid">
                 <div class="card">
                     <h3>Monitored Farm Pumps</h3>
                     <div class="metric">{len(REGISTERED_PUMPS)}</div>
-                    <p style="color:#94a3b8; font-size:0.85rem;">Virtual metering active across all wells</p>
+                    <p style="color:#94a3b8; font-size:0.8rem; margin:0;">Virtual metering active across all wells</p>
                 </div>
                 <div class="card">
                     <h3>Verified Avoided Extraction</h3>
-                    <div class="metric">3,850 m³</div>
-                    <p style="color:#4ade80; font-size:0.85rem;">+14.2% water saved vs baseline</p>
+                    <div class="metric" style="color:#34d399;">3,850 m³</div>
+                    <p style="color:#34d399; font-size:0.8rem; margin:0;">+14.2% water saved vs baseline</p>
                 </div>
                 <div class="card">
                     <h3>DISCOM Subsidy Savings</h3>
                     <div class="metric">₹ 26,950</div>
-                    <p style="color:#38bdf8; font-size:0.85rem;">Avoided 3,850 kWh agricultural load</p>
+                    <p style="color:#38bdf8; font-size:0.8rem; margin:0;">Avoided 3,850 kWh agricultural load</p>
                 </div>
                 <div class="card">
                     <h3>Farmer Incentive Payouts</h3>
-                    <div class="metric">₹ 13,475</div>
-                    <p style="color:#fbbf24; font-size:0.85rem;">Direct verified benefit transfer</p>
+                    <div class="metric" style="color:#fbbf24;">₹ 13,475</div>
+                    <p style="color:#fbbf24; font-size:0.8rem; margin:0;">Direct verified benefit transfer (DBT)</p>
+                </div>
+            </div>
+
+            <!-- AWS Bedrock Vernacular Advisor & Cedar Security Tester -->
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+                <div class="card">
+                    <h3>🤖 Amazon Bedrock Vernacular Advisor (Farmer Copilot)</h3>
+                    <p style="font-size:0.82rem; color:#94a3b8;">Personalized hydro-economic guidance in Indian regional languages:</p>
+                    <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.75rem;">
+                        <label style="font-size:0.8rem;">Language:</label>
+                        <select id="lang-select" onchange="updateAdvisory()">
+                            <option value="hi" selected>हिन्दी (Hindi)</option>
+                            <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+                            <option value="gu">ગુજરાતી (Gujarati)</option>
+                            <option value="te">తెలుగు (Telugu)</option>
+                            <option value="ta">தமிழ் (Tamil)</option>
+                            <option value="en">English</option>
+                        </select>
+                        <button class="btn" onclick="updateAdvisory()">Generate with Bedrock</button>
+                    </div>
+                    <div class="advisory-box" id="advisory-output">
+                        <strong>💧 एक्विपल्स (AquiPulse) किसान जल एवं आय परामर्श</strong><br>
+                        नमस्ते राजेश कुमार! आपके बोरवेल (PUMP-0001) का जलस्तर 34.8m है। आज जल बचत प्रोत्साहन दर ₹2.14/m³ है। दोपहर के समय पंप 2 घंटे बंद रखकर सौर ऊर्जा अवधि में चलाने पर आपको ₹80 का नकद प्रोत्साहन मिलेगा। फसल सुरक्षा (NDVI: 0.72) सामान्य है।
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>🛡️ AWS Cedar Zero-Trust Authorization Tester</h3>
+                    <p style="font-size:0.82rem; color:#94a3b8;">Fine-grained declarative access control based on <code>aws/policies.cedar</code>:</p>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; margin-bottom:0.75rem;">
+                        <div>
+                            <label style="font-size:0.75rem; color:#94a3b8;">Role / Principal:</label><br>
+                            <select id="cedar-role" style="width:100%;">
+                                <option value="DISCOM_Operator">DISCOM_Operator</option>
+                                <option value="Hydrogeologist">Hydrogeologist</option>
+                                <option value="Panchayat_Leader">Panchayat_Leader</option>
+                                <option value="Farmer">Farmer</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem; color:#94a3b8;">Action:</label><br>
+                            <select id="cedar-action" style="width:100%;">
+                                <option value="ViewTelemetry">ViewTelemetry</option>
+                                <option value="TriggerEmergencyShutdown">TriggerEmergencyShutdown</option>
+                                <option value="ModifyAquiferBoundary">ModifyAquiferBoundary</option>
+                                <option value="ViewVillageLedger">ViewVillageLedger</option>
+                                <option value="ClaimEarnedBonus">ClaimEarnedBonus</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn" style="width:100%;" onclick="testCedarPolicy()">Evaluate Cedar Policy</button>
+                    <div class="advisory-box" id="cedar-output">
+                        <strong>Decision: ALLOW</strong><br>
+                        <span style="color:#94a3b8; font-size:0.8rem;">Permitted by Cedar Policy #1: DISCOM grid operator controls</span>
+                    </div>
                 </div>
             </div>
 
             <div class="card">
-                <h3>Fleet Telemetry & Dynamic Water Levels (L1 & L4)</h3>
+                <h3>Fleet Telemetry & Dynamic Water Levels (AWS IoT Core Stream)</h3>
                 <table>
                     <thead>
                         <tr>
@@ -419,7 +621,7 @@ def discom_console_html() -> str:
                             <th>Dynamic Lift (m)</th>
                             <th>Externality Price (₹/m³)</th>
                             <th>Cone Stress</th>
-                            <th>Status</th>
+                            <th>AWS Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -434,7 +636,7 @@ def discom_console_html() -> str:
                             <td>{LATEST_STATES[p_id]["h_dyn_m"]:.1f} m</td>
                             <td>₹ {LATEST_PRICES[p_id]["lambda_inr_per_m3"]:.2f}</td>
                             <td><span class="{"tag-red" if LATEST_PRICES[p_id]["stress_level"] == "Stressed" else "tag-amber"}">{LATEST_PRICES[p_id]["stress_level"]}</span></td>
-                            <td><span class="tag-green">RUNNING</span></td>
+                            <td><span class="tag-green">AWS INGESTED</span></td>
                         </tr>
                         '''
             for p_id in list(REGISTERED_PUMPS.keys())[:6]
@@ -444,6 +646,50 @@ def discom_console_html() -> str:
                 </table>
             </div>
         </div>
+
+        <script>
+            async function updateAdvisory() {{
+                const lang = document.getElementById("lang-select").value;
+                const out = document.getElementById("advisory-output");
+                out.innerHTML = "<em>Invoking Amazon Bedrock Model...</em>";
+                try {{
+                    const res = await fetch("/v1/aws/advisory", {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{ pump_id: "PUMP-0001", language: lang }})
+                    }});
+                    const data = await res.json();
+                    out.innerHTML = `<strong>${{data.source}} (${{data.language.toUpperCase()}})</strong><br>${{data.whatsapp_message}}<br><br><span style="color:#38bdf8;">👉 Action: ${{data.recommended_action}}</span>`;
+                }} catch (e) {{
+                    out.innerText = "Error invoking Bedrock advisory: " + e;
+                }}
+            }}
+
+            async function testCedarPolicy() {{
+                const role = document.getElementById("cedar-role").value;
+                const act = document.getElementById("cedar-action").value;
+                const out = document.getElementById("cedar-output");
+                try {{
+                    const res = await fetch("/v1/aws/auth-check", {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{
+                            principal_type: role === "Farmer" ? "AquiPulse::Farmer" : "AquiPulse::Role",
+                            principal_id: role,
+                            action: act,
+                            resource_type: act === "ModifyAquiferBoundary" ? "AquiPulse::Aquifer" : (act === "ViewVillageLedger" ? "AquiPulse::Village" : (act === "ClaimEarnedBonus" ? "AquiPulse::Pump" : "AquiPulse::Feeder")),
+                            resource_id: "FEEDER-AG01",
+                            resource_owner: role
+                        }})
+                    }});
+                    const data = await res.json();
+                    const color = data.decision === "ALLOW" ? "#34d399" : "#f87171";
+                    out.innerHTML = `<strong style="color:${{color}}">Decision: ${{data.decision}}</strong><br><span style="color:#cbd5e1; font-size:0.8rem;">${{data.diagnostic_reason}}</span>`;
+                }} catch (e) {{
+                    out.innerText = "Error evaluating Cedar: " + e;
+                }}
+            }}
+        </script>
     </body>
     </html>
     """
